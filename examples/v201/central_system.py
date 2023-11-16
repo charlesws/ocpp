@@ -1,6 +1,9 @@
 import asyncio
 import logging
+import threading
 from datetime import datetime
+import ui
+
 
 try:
     import websockets
@@ -66,16 +69,42 @@ async def on_connect(websocket, path):
     await charge_point.start()
 
 
-async def main():
+async def task_server_ocpp():
     #  deepcode ignore BindToAllNetworkInterfaces: <Example Purposes>
     server = await websockets.serve(
-        on_connect, "0.0.0.0", 9000, subprotocols=["ocpp2.0.1"]
+        on_connect,
+        '0.0.0.0',
+        9000,
+        subprotocols=['ocpp2.0.1']
     )
 
     logging.info("Server Started listening to new connections...")
     await server.wait_closed()
 
 
-if __name__ == "__main__":
+async def work_timer():
+    while True:
+        print('work_timer on loop:')
+        await asyncio.sleep(1)
+
+
+def thread_loop_task(loop):
+    # 为子线程设置自己的事件循环
+    asyncio.set_event_loop(loop)
+    future = asyncio.gather(task_server_ocpp(), work_timer())
+    loop.run_until_complete(future)
+
+
+if __name__ == '__main__':
+    # 创建一个事件循环thread_loop
+    thread_loop = asyncio.new_event_loop()
+    t = threading.Thread(target=thread_loop_task, args=(thread_loop,))
+    t.daemon = True
+    t.start()
+    #
+    #
+    main_loop = asyncio.get_event_loop()
+    main_loop.run_until_complete(ui.task_ui())
+
     # asyncio.run() is used when running this example with Python >= 3.7v
-    asyncio.run(main())
+    # asyncio.run(main())
